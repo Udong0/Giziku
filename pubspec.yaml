@@ -1,0 +1,42 @@
+name: giziku1
+description: "GiziKu - AI-powered nutrition tracker (Final Project PPB)."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  provider: ^6.1.2
+
+  # AI: Gemini multimodal (vision + text -> JSON)
+  google_generative_ai: ^0.4.6
+
+  # Camera / gallery picker for food photos
+  image_picker: ^1.1.2
+
+  # Local persistence (placeholder until Firestore is wired up by the team)
+  shared_preferences: ^2.3.2
+
+  # Local file storage for captured images
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Helpers
+  uuid: ^4.5.1
+  intl: ^0.20.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
