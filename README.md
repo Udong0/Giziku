@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # giziku1
 
 A new Flutter project.
@@ -18,4 +18,4 @@ For help getting started with Flutter development, view the
 samples, guidance on mobile development, and a full API reference.
 =======
 # Giziku
->>>>>>> 20a9662e31e8b5b21d782a7c3a0aa8f34088d201
+
