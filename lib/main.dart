@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'features/planner/data/local_meal_plan_repository.dart';
+import 'features/planner/data/meal_plan_repository.dart';
+import 'features/planner/providers/meal_plan_provider.dart';
+import 'features/planner/services/notification_service.dart';
 import 'features/scanner/data/food_repository.dart';
 import 'features/scanner/data/local_food_repository.dart';
 import 'features/scanner/providers/food_library_provider.dart';
@@ -11,19 +15,38 @@ import 'features/scanner/services/gemini_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final prefs = await SharedPreferences.getInstance();
-  final FoodRepository repo = LocalFoodRepository(prefs);
-  await repo.init();
+  // Notification & timezone init
+  // Harus sebelum runApp agar timezone sudah siap saat pertama build.
+  await NotificationService.instance.initialize();
 
+  // Shared preferences
+  final prefs = await SharedPreferences.getInstance();
+
+  // Repositories
+  final FoodRepository foodRepo = LocalFoodRepository(prefs);
+  await foodRepo.init();
+
+  final MealPlanRepository mealPlanRepo = LocalMealPlanRepository(prefs);
+  await mealPlanRepo.init();
+
+  // Services
   final gemini = GeminiService.fromEnvironment();
 
+  // Run
   runApp(
     MultiProvider(
       providers: [
-        Provider<FoodRepository>.value(value: repo),
+        // Scanner
+        Provider<FoodRepository>.value(value: foodRepo),
         Provider<GeminiService>.value(value: gemini),
         ChangeNotifierProvider(
-          create: (_) => FoodLibraryProvider(repo)..load(),
+          create: (_) => FoodLibraryProvider(foodRepo)..load(),
+        ),
+
+        // Planner + Reminder
+        Provider<MealPlanRepository>.value(value: mealPlanRepo),
+        ChangeNotifierProvider(
+          create: (_) => MealPlanProvider(mealPlanRepo)..load(),
         ),
       ],
       child: const GiziKuApp(),
