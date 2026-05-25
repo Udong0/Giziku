@@ -227,7 +227,7 @@ Pastikan semua ini centang sebelum demo:
 
 - [x] BottomNavigationBar 4 tab (sudah)
 - [x] Satu repo, semua anggota ada riwayat commit
-- [x] Firebase Auth (siapa yang ambil? Diskusikan)
+- [ ] Firebase Auth (siapa yang ambil? Diskusikan)
 - [ ] Cloud Firestore (saat migrasi)
 - [ ] Push Notification (Anggota 3)
 - [ ] **Bonus**: Cloud Storage (foto makanan — Anggota 1 sudah siapkan hook)
