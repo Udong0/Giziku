@@ -23,6 +23,7 @@ class NotificationService {
   // ── Inisialisasi ────────────────────────────────────────────
   Future<void> initialize() async {
     if (_initialized) return;
+    if (kIsWeb) return;
 
     // Timezone — wajib agar alarm tidak meleset
     tz.initializeTimeZones();
@@ -116,6 +117,7 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
   }) async {
+    if (kIsWeb) return id;
     final tzDate = tz.TZDateTime.from(scheduledDate, tz.local);
 
     await _plugin.zonedSchedule(
@@ -139,6 +141,8 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: null,
     );
     return id;
@@ -146,11 +150,13 @@ class NotificationService {
 
   /// Batalkan notifikasi berdasarkan [id].
   Future<void> cancel(int id) async {
+    if (kIsWeb) return;
     await _plugin.cancel(id);
   }
 
   /// Batalkan semua notifikasi aktif.
   Future<void> cancelAll() async {
+    if (kIsWeb) return;
     await _plugin.cancelAll();
   }
 

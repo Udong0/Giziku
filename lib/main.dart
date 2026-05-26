@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,7 +21,10 @@ Future<void> main() async {
 
   // Notification & timezone init
   // Harus sebelum runApp agar timezone sudah siap saat pertama build.
-  await NotificationService.instance.initialize();
+  // flutter_local_notifications tidak support web — skip di Chrome.
+  if (!kIsWeb) {
+    await NotificationService.instance.initialize();
+  }
 
   // Shared preferences
   final prefs = await SharedPreferences.getInstance();
