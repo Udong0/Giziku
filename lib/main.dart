@@ -11,6 +11,9 @@ import 'features/scanner/data/food_repository.dart';
 import 'features/scanner/data/local_food_repository.dart';
 import 'features/scanner/providers/food_library_provider.dart';
 import 'features/scanner/services/gemini_service.dart';
+import 'features/tracker/data/diary_repository.dart';
+import 'features/tracker/data/local_diary_repository.dart';
+import 'features/tracker/providers/diary_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +31,9 @@ Future<void> main() async {
 
   final MealPlanRepository mealPlanRepo = LocalMealPlanRepository(prefs);
   await mealPlanRepo.init();
+
+  final DiaryRepository diaryRepo = LocalDiaryRepository(prefs);
+  await diaryRepo.init();
 
   // Services
   final gemini = GeminiService.fromEnvironment();
@@ -47,6 +53,11 @@ Future<void> main() async {
         Provider<MealPlanRepository>.value(value: mealPlanRepo),
         ChangeNotifierProvider(
           create: (_) => MealPlanProvider(mealPlanRepo)..load(),
+        ),
+        // Tracker
+        Provider<DiaryRepository>.value(value: diaryRepo),
+        ChangeNotifierProvider(
+          create: (_) => DiaryProvider(diaryRepo),
         ),
       ],
       child: const GiziKuApp(),
