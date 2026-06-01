@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +49,7 @@ class FoodDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (item.imagePath != null && File(item.imagePath!).existsSync())
+          if (item.imagePath != null && !kIsWeb)
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Image.file(
@@ -56,6 +57,7 @@ class FoodDetailScreen extends StatelessWidget {
                 height: 220,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
             ),
           if (item.imagePath != null) const SizedBox(height: 16),

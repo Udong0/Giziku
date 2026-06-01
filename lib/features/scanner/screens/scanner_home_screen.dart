@@ -29,9 +29,23 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
 
   Future<void> _runAnalysis(Future<FoodAnalysis> Function() task) async {
     setState(() => _analyzing = true);
+    final gemini = context.read<GeminiService>();
     try {
       final result = await task();
       if (!mounted) return;
+      // Surface error API: GeminiService fallback ke mock, tapi user
+      // tetap perlu tahu kalau hasilnya bukan dari AI beneran.
+      if (gemini.lastError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'AI tidak merespon — pakai estimasi offline. '
+              '(${gemini.lastError})',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => AnalysisResultScreen(analysis: result),

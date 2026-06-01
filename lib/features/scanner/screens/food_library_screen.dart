@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -120,6 +121,20 @@ class _FoodCard extends StatelessWidget {
 
   final FoodItem item;
 
+  Widget _buildThumbnail(FoodItem item, ColorScheme scheme) {
+    final fallback = Container(
+      color: scheme.surfaceContainerHighest,
+      child: const Icon(Icons.fastfood, size: 28),
+    );
+    // File class dari dart:io tidak support di web; pakai placeholder.
+    if (kIsWeb || item.imagePath == null) return fallback;
+    return Image.file(
+      File(item.imagePath!),
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => fallback,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -138,12 +153,7 @@ class _FoodCard extends StatelessWidget {
                 child: SizedBox(
                   width: 64,
                   height: 64,
-                  child: item.imagePath != null && File(item.imagePath!).existsSync()
-                      ? Image.file(File(item.imagePath!), fit: BoxFit.cover)
-                      : Container(
-                          color: scheme.surfaceContainerHighest,
-                          child: const Icon(Icons.fastfood, size: 28),
-                        ),
+                  child: _buildThumbnail(item, scheme),
                 ),
               ),
               const SizedBox(width: 12),

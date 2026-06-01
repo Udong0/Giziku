@@ -14,7 +14,7 @@ import '../models/food_item.dart';
 /// When the key is missing (or the API call fails) the service returns a
 /// deterministic mock so the rest of the app stays demo-able.
 class GeminiService {
-  GeminiService({this.apiKey, this.modelName = 'gemini-1.5-flash'});
+  GeminiService({this.apiKey, this.modelName = 'gemini-2.0-flash'});
 
   factory GeminiService.fromEnvironment() {
     const key = String.fromEnvironment('GEMINI_API_KEY');
@@ -24,7 +24,21 @@ class GeminiService {
   final String? apiKey;
   final String modelName;
 
+  /// Pesan error dari panggilan API terakhir.
+  /// `null` jika sukses, atau jika fallback ke mock karena API key belum di-set.
+  /// Di-set hanya saat API call gagal (network/parse/rate-limit/dll).
+  String? _lastError;
+  String? get lastError => _lastError;
+
   bool get isConfigured => apiKey != null && apiKey!.isNotEmpty;
+
+  GenerativeModel _buildModel() => GenerativeModel(
+        model: modelName,
+        apiKey: apiKey!,
+        generationConfig:
+            GenerationConfig(responseMimeType: 'application/json'),
+        systemInstruction: Content.system(_systemPrompt),
+      );
 
   static const _systemPrompt = '''
 You are a nutrition assistant for an Indonesian food tracking app called GiziKu.
@@ -44,43 +58,35 @@ If the input is not food, return name "Unknown" and zeros.
 ''';
 
   Future<FoodAnalysis> analyzeText(String description) async {
+    _lastError = null;
     if (!isConfigured) return _mock(name: description, source: FoodSource.aiText);
     try {
-      final model = GenerativeModel(
-        model: modelName,
-        apiKey: apiKey!,
-        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
-        systemInstruction: Content.system(_systemPrompt),
-      );
-      final response = await model.generateContent([
+      final response = await _buildModel().generateContent([
         Content.text('Analyze this meal description: "$description"'),
       ]);
       return _parse(response.text ?? '', source: FoodSource.aiText);
-    } catch (_) {
+    } catch (e) {
+      _lastError = e.toString();
       return _mock(name: description, source: FoodSource.aiText);
     }
   }
 
   Future<FoodAnalysis> analyzeImage(File image, {String? hint}) async {
+    _lastError = null;
+    final fallbackName = hint?.isNotEmpty == true ? hint! : 'Makanan dari foto';
     if (!isConfigured) {
       return _mock(
-        name: hint?.isNotEmpty == true ? hint! : 'Makanan dari foto',
+        name: fallbackName,
         source: FoodSource.aiImage,
         imagePath: image.path,
       );
     }
     try {
       final bytes = await image.readAsBytes();
-      final model = GenerativeModel(
-        model: modelName,
-        apiKey: apiKey!,
-        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
-        systemInstruction: Content.system(_systemPrompt),
-      );
       final prompt = hint == null || hint.isEmpty
           ? 'Identify the meal in this photo and estimate the nutrition.'
           : 'Identify the meal in this photo (user hint: "$hint") and estimate the nutrition.';
-      final response = await model.generateContent([
+      final response = await _buildModel().generateContent([
         Content.multi([
           TextPart(prompt),
           DataPart('image/jpeg', bytes),
@@ -91,9 +97,10 @@ If the input is not food, return name "Unknown" and zeros.
         source: FoodSource.aiImage,
         imagePath: image.path,
       );
-    } catch (_) {
+    } catch (e) {
+      _lastError = e.toString();
       return _mock(
-        name: hint?.isNotEmpty == true ? hint! : 'Makanan dari foto',
+        name: fallbackName,
         source: FoodSource.aiImage,
         imagePath: image.path,
       );
@@ -123,7 +130,8 @@ If the input is not food, return name "Unknown" and zeros.
         source: source,
         imagePath: imagePath,
       );
-    } catch (_) {
+    } catch (e) {
+      _lastError = 'Gagal membaca respon AI: $e';
       return _mock(name: 'Hasil tidak dapat dibaca', source: source, imagePath: imagePath);
     }
   }

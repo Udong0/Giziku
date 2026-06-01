@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
@@ -158,6 +159,13 @@ class _ImagePreview extends StatelessWidget {
   final VoidCallback? onGallery;
   final VoidCallback? onClear;
 
+  Widget _placeholder(ColorScheme scheme) => Container(
+        color: scheme.surfaceContainerHighest,
+        child: const Center(
+          child: Icon(Icons.photo_outlined, size: 48),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -168,14 +176,13 @@ class _ImagePreview extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: AspectRatio(
             aspectRatio: 16 / 9,
-            child: path != null && File(path!).existsSync()
-                ? Image.file(File(path!), fit: BoxFit.cover)
-                : Container(
-                    color: scheme.surfaceContainerHighest,
-                    child: const Center(
-                      child: Icon(Icons.photo_outlined, size: 48),
-                    ),
-                  ),
+            child: path != null && !kIsWeb
+                ? Image.file(
+                    File(path!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _placeholder(scheme),
+                  )
+                : _placeholder(scheme),
           ),
         ),
         const SizedBox(height: 8),
