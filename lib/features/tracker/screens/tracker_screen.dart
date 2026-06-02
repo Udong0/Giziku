@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../features/profile/providers/user_prefs_provider.dart';
 import '../models/diary_entry.dart';
 import '../providers/diary_provider.dart';
 import 'add_entry_screen.dart';
@@ -151,9 +152,9 @@ class _CalorieSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final progress =
-        (provider.totalCalories / DiaryProvider.calorieGoal).clamp(0.0, 1.0);
-    final over = provider.totalCalories > DiaryProvider.calorieGoal;
+    final goal = context.watch<UserPrefsProvider>().calorieGoal;
+    final progress = (provider.totalCalories / goal).clamp(0.0, 1.0);
+    final over = provider.totalCalories > goal;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -193,7 +194,7 @@ class _CalorieSummaryCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                  '/ ${DiaryProvider.calorieGoal.toStringAsFixed(0)} kkal',
+                  '/ ${goal.toStringAsFixed(0)} kkal',
                   style: TextStyle(color: scheme.onPrimaryContainer),
                 ),
               ),
@@ -212,8 +213,8 @@ class _CalorieSummaryCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             over
-                ? 'Melebihi target ${(provider.totalCalories - DiaryProvider.calorieGoal).toStringAsFixed(0)} kkal'
-                : '${(DiaryProvider.calorieGoal - provider.totalCalories).toStringAsFixed(0)} kkal tersisa',
+                ? 'Melebihi target ${(provider.totalCalories - goal).toStringAsFixed(0)} kkal'
+                : '${(goal - provider.totalCalories).toStringAsFixed(0)} kkal tersisa',
             style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12),
           ),
           const SizedBox(height: 16),

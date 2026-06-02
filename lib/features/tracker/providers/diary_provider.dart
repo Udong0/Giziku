@@ -21,8 +21,6 @@ class DiaryProvider extends ChangeNotifier {
   String? get error => _error;
   String get selectedDateKey => DiaryEntry.dateKeyOf(_selectedDate);
 
-  static const double calorieGoal = 2000;
-
   double get totalCalories => _entries.fold(0, (s, e) => s + e.totalCalories);
   double get totalProtein => _entries.fold(0, (s, e) => s + e.totalProtein);
   double get totalCarbs => _entries.fold(0, (s, e) => s + e.totalCarbs);

@@ -83,3 +83,6 @@ lib/firebase_options.dart
 
 # === Claude Code config===
 .claude/
+
+# === Dokumen lokal (laporan, catatan) ===
+LAPORAN.md
