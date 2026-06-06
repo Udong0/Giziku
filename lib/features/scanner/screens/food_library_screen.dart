@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/food_item.dart';
 import '../providers/food_library_provider.dart';
+import '../services/food_image_storage.dart';
 import 'food_detail_screen.dart';
 import 'food_edit_screen.dart';
 
@@ -126,10 +127,20 @@ class _FoodCard extends StatelessWidget {
       color: scheme.surfaceContainerHighest,
       child: const Icon(Icons.fastfood, size: 28),
     );
-    // File class dari dart:io tidak support di web; pakai placeholder.
-    if (kIsWeb || item.imagePath == null) return fallback;
+    final path = item.imagePath;
+    if (path == null) return fallback;
+    // URL Supabase Storage: aman untuk web & native.
+    if (FoodImageStorage.isRemoteUrl(path)) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => fallback,
+      );
+    }
+    // Local file path: dart:io File tidak support di web.
+    if (kIsWeb) return fallback;
     return Image.file(
-      File(item.imagePath!),
+      File(path),
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => fallback,
     );

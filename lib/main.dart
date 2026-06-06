@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'features/auth/providers/auth_provider.dart' as app_auth;
@@ -16,7 +17,9 @@ import 'features/planner/services/notification_service.dart';
 import 'features/profile/providers/user_prefs_provider.dart';
 import 'features/scanner/data/food_repository.dart';
 import 'features/scanner/data/local_food_repository.dart';
+import 'features/scanner/data/supabase_food_repository.dart';
 import 'features/scanner/providers/food_library_provider.dart';
+import 'features/scanner/services/food_image_storage.dart';
 import 'features/scanner/services/gemini_service.dart';
 import 'features/tracker/data/diary_repository.dart';
 import 'features/tracker/data/firestore_diary_repository.dart';
@@ -36,6 +39,17 @@ Future<void> main() async {
   // Firebase — wajib sebelum Firestore / Auth / FCM dipakai.
   await Firebase.initializeApp();
 
+  // Supabase — cloud DB untuk Scanner food library.
+  // Kredensial dimuat dari .env (SUPABASE_URL, SUPABASE_ANON_KEY).
+  final supaUrl = dotenv.env['SUPABASE_URL'];
+  final supaKey = dotenv.env['SUPABASE_ANON_KEY'];
+  if (supaUrl != null && supaKey != null && supaUrl.isNotEmpty) {
+    await Supabase.initialize(url: supaUrl, publishableKey: supaKey);
+    debugPrint('[main] Supabase OK: $supaUrl');
+  } else {
+    debugPrint('[main] ⚠️ SUPABASE_URL/ANON_KEY belum di-set di .env');
+  }
+
   // Notification & timezone init (skip di web — flutter_local_notifications
   // tidak support web).
   if (!kIsWeb) {
@@ -46,7 +60,10 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
 
   // Repositories
-  final FoodRepository foodRepo = LocalFoodRepository(prefs);
+  // Food: pakai Supabase kalau kredensial ada, fallback ke local (offline-safe).
+  final FoodRepository foodRepo = (supaUrl != null && supaUrl.isNotEmpty)
+      ? SupabaseFoodRepository(Supabase.instance.client)
+      : LocalFoodRepository(prefs);
   await foodRepo.init();
 
   final MealPlanRepository mealPlanRepo = LocalMealPlanRepository(prefs);
@@ -64,6 +81,10 @@ Future<void> main() async {
 
   // Services
   final gemini = GeminiService.fromEnvironment();
+  // Image storage: hanya aktif kalau Supabase ada. Screen handle null.
+  final imageStorage = (supaUrl != null && supaUrl.isNotEmpty)
+      ? FoodImageStorage(Supabase.instance.client)
+      : null;
 
   // Run
   runApp(
@@ -72,6 +93,7 @@ Future<void> main() async {
         // Scanner
         Provider<FoodRepository>.value(value: foodRepo),
         Provider<GeminiService>.value(value: gemini),
+        Provider<FoodImageStorage?>.value(value: imageStorage),
         ChangeNotifierProvider(
           create: (_) => FoodLibraryProvider(foodRepo)..load(),
         ),

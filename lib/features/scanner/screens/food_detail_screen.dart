@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../models/food_item.dart';
 import '../providers/food_library_provider.dart';
+import '../services/food_image_storage.dart';
 import 'food_edit_screen.dart';
 
 /// READ (detail) + entry point for UPDATE / DELETE.
@@ -49,18 +50,29 @@ class FoodDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (item.imagePath != null && !kIsWeb)
+          if (item.imagePath != null) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.file(
-                File(item.imagePath!),
-                height: 220,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
+              child: FoodImageStorage.isRemoteUrl(item.imagePath!)
+                  ? Image.network(
+                      item.imagePath!,
+                      height: 220,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    )
+                  : (kIsWeb
+                      ? const SizedBox.shrink()
+                      : Image.file(
+                          File(item.imagePath!),
+                          height: 220,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        )),
             ),
-          if (item.imagePath != null) const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           Text(item.name, style: Theme.of(context).textTheme.headlineSmall),
           if (item.description != null) ...[
             const SizedBox(height: 4),

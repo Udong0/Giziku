@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/food_item.dart';
 import '../providers/food_library_provider.dart';
+import '../services/food_image_storage.dart';
 import 'food_form.dart';
 import 'food_library_screen.dart';
 
@@ -38,8 +39,27 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
     super.dispose();
   }
 
-  Future<String?> _persistImage(String? source) async {
-    if (source == null) return null;
+  /// Prioritas: upload ke Supabase Storage. Fallback: salin ke app docs dir.
+  /// Return `(path, errorMessage)` — errorMessage non-null kalau upload gagal.
+  Future<(String?, String?)> _persistImage(
+    String? source,
+    FoodImageStorage? storage,
+  ) async {
+    if (source == null) return (null, null);
+    String? uploadError;
+    if (storage != null) {
+      try {
+        final url = await storage.upload(File(source));
+        debugPrint('[AnalysisResult] ✅ Upload Supabase OK: $url');
+        return (url, null);
+      } catch (e) {
+        uploadError = e.toString();
+        debugPrint('[AnalysisResult] ❌ Upload Supabase gagal: $e');
+      }
+    } else {
+      uploadError = 'FoodImageStorage = null (Supabase belum di-init)';
+      debugPrint('[AnalysisResult] ⚠️ $uploadError');
+    }
     try {
       final docs = await getApplicationDocumentsDirectory();
       final foodDir = Directory(p.join(docs.path, 'food_images'));
@@ -47,9 +67,9 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
       final ext = p.extension(source).isEmpty ? '.jpg' : p.extension(source);
       final destPath = p.join(foodDir.path, '${const Uuid().v4()}$ext');
       await File(source).copy(destPath);
-      return destPath;
+      return (destPath, uploadError);
     } catch (_) {
-      return source;
+      return (source, uploadError);
     }
   }
 
@@ -62,9 +82,15 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
       return;
     }
 
+    final storage = context.read<FoodImageStorage?>();
+    final libProvider = context.read<FoodLibraryProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
     setState(() => _saving = true);
     try {
-      final storedPath = await _persistImage(draft.imagePath);
+      final (storedPath, uploadError) =
+          await _persistImage(draft.imagePath, storage);
       final now = DateTime.now();
       final item = FoodItem(
         id: const Uuid().v4(),
@@ -81,12 +107,19 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
         updatedAt: now,
       );
       if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      final navigator = Navigator.of(context);
-      await context.read<FoodLibraryProvider>().add(item);
-      messenger.showSnackBar(
-        SnackBar(content: Text('"${item.name}" disimpan ke koleksi.')),
-      );
+      await libProvider.add(item);
+      if (uploadError != null) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Upload cloud gagal, simpan lokal.\n$uploadError'),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(content: Text('"${item.name}" disimpan ke koleksi.')),
+        );
+      }
       navigator.pop();
       navigator.push(
         MaterialPageRoute(builder: (_) => const FoodLibraryScreen()),

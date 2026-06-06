@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/food_item.dart';
 import '../providers/food_library_provider.dart';
+import '../services/food_image_storage.dart';
 import 'food_form.dart';
 
 /// UPDATE (also handles "create from blank" when [isNew] is true).
@@ -40,6 +41,8 @@ class _FoodEditScreenState extends State<FoodEditScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    final storage = context.read<FoodImageStorage?>();
+    final messenger = ScaffoldMessenger.of(context);
     final picker = ImagePicker();
     final file = await picker.pickImage(
       source: source,
@@ -47,11 +50,44 @@ class _FoodEditScreenState extends State<FoodEditScreen> {
       imageQuality: 85,
     );
     if (file == null) return;
-    final stored = await _persistImage(file.path);
-    setState(() => _controller.imagePath = stored);
+
+    setState(() => _saving = true);
+    final (path, uploadError) = await _persistImage(file.path, storage);
+    if (!mounted) return;
+    setState(() {
+      _controller.imagePath = path;
+      _saving = false;
+    });
+    if (uploadError != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Upload cloud gagal, simpan lokal.\n$uploadError'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    }
   }
 
-  Future<String?> _persistImage(String source) async {
+  /// Prioritas: upload ke Supabase Storage. Fallback: salin ke app docs dir.
+  /// Return `(path, errorMessage)` — errorMessage non-null kalau upload gagal.
+  Future<(String?, String?)> _persistImage(
+    String source,
+    FoodImageStorage? storage,
+  ) async {
+    String? uploadError;
+    if (storage != null) {
+      try {
+        final url = await storage.upload(File(source));
+        debugPrint('[FoodEdit] ✅ Upload Supabase OK: $url');
+        return (url, null);
+      } catch (e) {
+        uploadError = e.toString();
+        debugPrint('[FoodEdit] ❌ Upload Supabase gagal: $e');
+      }
+    } else {
+      uploadError = 'FoodImageStorage = null (Supabase belum di-init)';
+      debugPrint('[FoodEdit] ⚠️ $uploadError');
+    }
     try {
       final docs = await getApplicationDocumentsDirectory();
       final foodDir = Directory(p.join(docs.path, 'food_images'));
@@ -59,9 +95,9 @@ class _FoodEditScreenState extends State<FoodEditScreen> {
       final ext = p.extension(source).isEmpty ? '.jpg' : p.extension(source);
       final destPath = p.join(foodDir.path, '${const Uuid().v4()}$ext');
       await File(source).copy(destPath);
-      return destPath;
+      return (destPath, uploadError);
     } catch (_) {
-      return source;
+      return (source, uploadError);
     }
   }
 
@@ -166,6 +202,24 @@ class _ImagePreview extends StatelessWidget {
         ),
       );
 
+  Widget _buildPreview(ColorScheme scheme) {
+    final p = path;
+    if (p == null) return _placeholder(scheme);
+    if (FoodImageStorage.isRemoteUrl(p)) {
+      return Image.network(
+        p,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _placeholder(scheme),
+      );
+    }
+    if (kIsWeb) return _placeholder(scheme);
+    return Image.file(
+      File(p),
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => _placeholder(scheme),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -176,13 +230,7 @@ class _ImagePreview extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: AspectRatio(
             aspectRatio: 16 / 9,
-            child: path != null && !kIsWeb
-                ? Image.file(
-                    File(path!),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _placeholder(scheme),
-                  )
-                : _placeholder(scheme),
+            child: _buildPreview(scheme),
           ),
         ),
         const SizedBox(height: 8),
