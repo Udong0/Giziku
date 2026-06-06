@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/food_item.dart';
@@ -5,49 +6,80 @@ import 'food_repository.dart';
 
 /// Supabase-backed food repository.
 ///
-/// Tabel `public.food_items` (lihat SQL schema di INTEGRATION.md / setup notes).
-/// Sekarang shared (RLS disabled). Migrasi ke per-user pakai Supabase Auth nanti.
+/// Tabel `public.food_items` dengan kolom `user_id` (text) — Firebase UID.
+/// RLS off; isolasi per-user dilakukan **client-side** dengan filter
+/// `.eq('user_id', firebaseUid)` di setiap query.
+///
+/// NOTE: Trust-based — siapapun dengan anon key bisa bypass filter
+/// kalau lewat REST. Untuk security yg proper, migrasi ke Supabase Auth.
 class SupabaseFoodRepository implements FoodRepository {
   SupabaseFoodRepository(this._client);
 
   final SupabaseClient _client;
   static const _table = 'food_items';
 
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+
   @override
   Future<void> init() async {
     // Supabase client sudah di-initialize di main.dart.
-    // Method ini ada untuk memenuhi kontrak FoodRepository.
   }
 
   @override
   Future<List<FoodItem>> getAll() async {
+    final uid = _uid;
+    if (uid == null) return [];
     final rows = await _client
         .from(_table)
         .select()
+        .eq('user_id', uid)
         .order('updated_at', ascending: false);
     return rows.map<FoodItem>(_fromRow).toList();
   }
 
   @override
   Future<FoodItem?> getById(String id) async {
-    final rows = await _client.from(_table).select().eq('id', id).limit(1);
+    final uid = _uid;
+    if (uid == null) return null;
+    final rows = await _client
+        .from(_table)
+        .select()
+        .eq('id', id)
+        .eq('user_id', uid)
+        .limit(1);
     if (rows.isEmpty) return null;
     return _fromRow(rows.first);
   }
 
   @override
   Future<void> add(FoodItem item) async {
-    await _client.from(_table).insert(_toRow(item));
+    final uid = _uid;
+    if (uid == null) {
+      throw StateError('Tidak bisa simpan: user belum login.');
+    }
+    await _client.from(_table).insert({..._toRow(item), 'user_id': uid});
   }
 
   @override
   Future<void> update(FoodItem item) async {
-    await _client.from(_table).update(_toRow(item)).eq('id', item.id);
+    final uid = _uid;
+    if (uid == null) {
+      throw StateError('Tidak bisa update: user belum login.');
+    }
+    await _client
+        .from(_table)
+        .update(_toRow(item))
+        .eq('id', item.id)
+        .eq('user_id', uid);
   }
 
   @override
   Future<void> delete(String id) async {
-    await _client.from(_table).delete().eq('id', id);
+    final uid = _uid;
+    if (uid == null) {
+      throw StateError('Tidak bisa hapus: user belum login.');
+    }
+    await _client.from(_table).delete().eq('id', id).eq('user_id', uid);
   }
 
   // ── Mapping antara FoodItem (camelCase) ↔ Postgres row (snake_case) ──
