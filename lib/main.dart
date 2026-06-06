@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +24,14 @@ import 'features/tracker/providers/diary_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // .env — muat GEMINI_API_KEY dll. Diam-diam kalau file tidak ada
+  // (mis. di CI / fresh checkout).
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('[main] .env tidak ditemukan — fallback ke --dart-define: $e');
+  }
 
   // Firebase — wajib sebelum Firestore / Auth / FCM dipakai.
   await Firebase.initializeApp();

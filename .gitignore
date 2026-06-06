@@ -12,6 +12,24 @@
 .swiftpm/
 migrate_working_dir/
 
+# === OS junk (Windows / macOS) ===
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# === Backup / temp editor files ===
+*.bak
+*.tmp
+*~
+
+# === iOS / macOS CocoaPods (kalau nanti add iOS dev) ===
+**/ios/Pods/
+**/ios/.symlinks/
+**/macos/Pods/
+**/macos/.symlinks/
+
 # IntelliJ related
 *.iml
 *.ipr

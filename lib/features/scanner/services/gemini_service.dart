@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 import '../models/food_item.dart';
@@ -14,10 +16,22 @@ import '../models/food_item.dart';
 /// When the key is missing (or the API call fails) the service returns a
 /// deterministic mock so the rest of the app stays demo-able.
 class GeminiService {
-  GeminiService({this.apiKey, this.modelName = 'gemini-2.0-flash'});
+  GeminiService({this.apiKey, this.modelName = 'gemini-2.5-flash'});
 
+  /// Muat API key dengan prioritas:
+  ///   1. `.env` (dimuat oleh `dotenv.load()` di `main.dart`)
+  ///   2. `--dart-define=GEMINI_API_KEY=...`
   factory GeminiService.fromEnvironment() {
-    const key = String.fromEnvironment('GEMINI_API_KEY');
+    const defineKey = String.fromEnvironment('GEMINI_API_KEY');
+    final envKey = dotenv.isInitialized ? (dotenv.env['GEMINI_API_KEY'] ?? '') : '';
+    final key = envKey.isNotEmpty ? envKey : defineKey;
+
+    if (key.isEmpty) {
+      debugPrint('[GeminiService] ⚠️  API key tidak ditemukan.');
+    } else {
+      final prefix = key.substring(0, key.length.clamp(0, 8));
+      debugPrint('[GeminiService] ✅ API key dimuat (prefix: "$prefix...")');
+    }
     return GeminiService(apiKey: key.isEmpty ? null : key);
   }
 
@@ -33,12 +47,11 @@ class GeminiService {
   bool get isConfigured => apiKey != null && apiKey!.isNotEmpty;
 
   GenerativeModel _buildModel() => GenerativeModel(
-        model: modelName,
-        apiKey: apiKey!,
-        generationConfig:
-            GenerationConfig(responseMimeType: 'application/json'),
-        systemInstruction: Content.system(_systemPrompt),
-      );
+    model: modelName,
+    apiKey: apiKey!,
+    generationConfig: GenerationConfig(responseMimeType: 'application/json'),
+    systemInstruction: Content.system(_systemPrompt),
+  );
 
   static const _systemPrompt = '''
 You are a nutrition assistant for an Indonesian food tracking app called GiziKu.
@@ -59,14 +72,19 @@ If the input is not food, return name "Unknown" and zeros.
 
   Future<FoodAnalysis> analyzeText(String description) async {
     _lastError = null;
-    if (!isConfigured) return _mock(name: description, source: FoodSource.aiText);
+    if (!isConfigured) {
+      return _mock(name: description, source: FoodSource.aiText);
+    }
     try {
+      debugPrint('[GeminiService] 🔍 analyzeText: "$description"');
       final response = await _buildModel().generateContent([
         Content.text('Analyze this meal description: "$description"'),
       ]);
+      debugPrint('[GeminiService] ✅ analyzeText response: ${response.text}');
       return _parse(response.text ?? '', source: FoodSource.aiText);
     } catch (e) {
       _lastError = e.toString();
+      debugPrint('[GeminiService] ❌ analyzeText ERROR: $e');
       return _mock(name: description, source: FoodSource.aiText);
     }
   }
@@ -82,16 +100,17 @@ If the input is not food, return name "Unknown" and zeros.
       );
     }
     try {
+      debugPrint(
+        '[GeminiService] 📷 analyzeImage: ${image.path} (hint: $hint)',
+      );
       final bytes = await image.readAsBytes();
       final prompt = hint == null || hint.isEmpty
           ? 'Identify the meal in this photo and estimate the nutrition.'
           : 'Identify the meal in this photo (user hint: "$hint") and estimate the nutrition.';
       final response = await _buildModel().generateContent([
-        Content.multi([
-          TextPart(prompt),
-          DataPart('image/jpeg', bytes),
-        ]),
+        Content.multi([TextPart(prompt), DataPart('image/jpeg', bytes)]),
       ]);
+      debugPrint('[GeminiService] ✅ analyzeImage response: ${response.text}');
       return _parse(
         response.text ?? '',
         source: FoodSource.aiImage,
@@ -99,6 +118,7 @@ If the input is not food, return name "Unknown" and zeros.
       );
     } catch (e) {
       _lastError = e.toString();
+      debugPrint('[GeminiService] ❌ analyzeImage ERROR: $e');
       return _mock(
         name: fallbackName,
         source: FoodSource.aiImage,
@@ -112,7 +132,10 @@ If the input is not food, return name "Unknown" and zeros.
     required FoodSource source,
     String? imagePath,
   }) {
-    final cleaned = raw.trim().replaceAll(RegExp(r'^```(?:json)?|```$'), '').trim();
+    final cleaned = raw
+        .trim()
+        .replaceAll(RegExp(r'^```(?:json)?|```$'), '')
+        .trim();
     try {
       final json = jsonDecode(cleaned) as Map<String, dynamic>;
       double num0(String k) => (json[k] as num?)?.toDouble() ?? 0;
@@ -132,7 +155,11 @@ If the input is not food, return name "Unknown" and zeros.
       );
     } catch (e) {
       _lastError = 'Gagal membaca respon AI: $e';
-      return _mock(name: 'Hasil tidak dapat dibaca', source: source, imagePath: imagePath);
+      return _mock(
+        name: 'Hasil tidak dapat dibaca',
+        source: source,
+        imagePath: imagePath,
+      );
     }
   }
 
@@ -145,7 +172,8 @@ If the input is not food, return name "Unknown" and zeros.
     final calories = 200 + r.nextInt(400);
     return FoodAnalysis(
       name: name.isEmpty ? 'Makanan' : name,
-      description: 'Estimasi offline — pasang GEMINI_API_KEY untuk hasil nyata.',
+      description:
+          'Estimasi offline — pasang GEMINI_API_KEY untuk hasil nyata.',
       servingSize: 150 + r.nextInt(150).toDouble(),
       calories: calories.toDouble(),
       protein: 5 + r.nextInt(25).toDouble(),
