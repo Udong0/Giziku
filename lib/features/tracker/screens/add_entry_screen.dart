@@ -8,6 +8,7 @@ import '../../../features/scanner/screens/food_form.dart';
 import '../models/diary_entry.dart';
 import '../providers/diary_provider.dart';
 
+
 /// CREATE (tambah makanan baru ke jurnal) dan UPDATE (edit porsi / detail).
 ///
 /// Jika [existingEntry] null → mode CREATE dengan TabBar dua tab:
@@ -237,9 +238,21 @@ class _LibraryTabState extends State<_LibraryTab> {
         .toList();
   }
 
+  List<FoodItem> _recentItems(BuildContext context) {
+    final recentIds = context
+        .read<DiaryProvider>()
+        .entries
+        .where((e) => e.foodItemId != null)
+        .map((e) => e.foodItemId!)
+        .toSet();
+    return widget.items.where((f) => recentIds.contains(f.id)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final recentItems = _query.isEmpty ? _recentItems(context) : <FoodItem>[];
+
     return Column(
       children: [
         Padding(
@@ -253,38 +266,123 @@ class _LibraryTabState extends State<_LibraryTab> {
           ),
         ),
         Expanded(
-          child: _filtered.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      _query.isEmpty
-                          ? 'Koleksi makanan masih kosong.\n'
-                              'Tambahkan makanan lewat tab Scanner terlebih dahulu.'
-                          : 'Tidak ada makanan yang cocok dengan "$_query".',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: scheme.outline),
+          child: _query.isNotEmpty
+              ? (_filtered.isEmpty
+                  ? _EmptyHint(message: 'Tidak ada makanan yang cocok dengan "$_query".', scheme: scheme)
+                  : _FoodList(items: _filtered, onSelect: widget.onSelect))
+              : widget.items.isEmpty
+                  ? _EmptyHint(
+                      message: 'Koleksi makanan masih kosong.\nTambahkan makanan lewat tab Scanner terlebih dahulu.',
+                      scheme: scheme,
+                    )
+                  : ListView(
+                      children: [
+                        if (recentItems.isNotEmpty) ...[
+                          _SectionHeader(
+                            icon: Icons.history_rounded,
+                            label: 'Terakhir Digunakan Hari Ini',
+                            scheme: scheme,
+                          ),
+                          ...recentItems.map(
+                            (item) => _FoodListTile(item: item, onSelect: widget.onSelect),
+                          ),
+                          const Divider(height: 1),
+                        ],
+                        _SectionHeader(
+                          icon: Icons.collections_bookmark_outlined,
+                          label: 'Semua Koleksi',
+                          scheme: scheme,
+                        ),
+                        ...widget.items.map(
+                          (item) => _FoodListTile(item: item, onSelect: widget.onSelect),
+                        ),
+                      ],
                     ),
-                  ),
-                )
-              : ListView.separated(
-                  itemCount: _filtered.length,
-                  separatorBuilder: (_, i) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
-                    final item = _filtered[i];
-                    return ListTile(
-                      title: Text(item.name),
-                      subtitle: Text(
-                        '${item.calories.toStringAsFixed(0)} kkal · '
-                        '${item.servingSize.toStringAsFixed(0)} g per porsi',
-                      ),
-                      trailing: const Icon(Icons.add_circle_outline),
-                      onTap: () => widget.onSelect(item),
-                    );
-                  },
-                ),
         ),
       ],
+    );
+  }
+}
+
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint({required this.message, required this.scheme});
+  final String message;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: scheme.outline),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.icon, required this.label, required this.scheme});
+  final IconData icon;
+  final String label;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: scheme.primary,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FoodList extends StatelessWidget {
+  const _FoodList({required this.items, required this.onSelect});
+  final List<FoodItem> items;
+  final ValueChanged<FoodItem> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (_, i) => _FoodListTile(item: items[i], onSelect: onSelect),
+    );
+  }
+}
+
+class _FoodListTile extends StatelessWidget {
+  const _FoodListTile({required this.item, required this.onSelect});
+  final FoodItem item;
+  final ValueChanged<FoodItem> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(item.name),
+      subtitle: Text(
+        '${item.calories.toStringAsFixed(0)} kkal · '
+        '${item.servingSize.toStringAsFixed(0)} g per porsi',
+      ),
+      trailing: const Icon(Icons.add_circle_outline),
+      onTap: () => onSelect(item),
     );
   }
 }

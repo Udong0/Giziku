@@ -23,6 +23,25 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _editMacroGoals(
+      BuildContext context, UserPrefsProvider prefs) async {
+    final result = await showDialog<({double protein, double carbs, double fat})>(
+      context: context,
+      builder: (_) => _MacroGoalsDialog(
+        initialProtein: prefs.proteinGoal,
+        initialCarbs: prefs.carbsGoal,
+        initialFat: prefs.fatGoal,
+      ),
+    );
+    if (result != null && context.mounted) {
+      await prefs.setMacroGoals(
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<app_auth.AuthProvider>();
@@ -88,6 +107,64 @@ class ProfileScreen extends StatelessWidget {
                   Text('${prefs.calorieGoal.toStringAsFixed(0)} kkal / hari'),
               trailing: const Icon(Icons.edit_outlined),
               onTap: () => _editCalorieGoal(context, prefs),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Target makronutrien (editable)
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.donut_small_outlined),
+                  title: const Text('Target Makronutrien'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Edit target makro',
+                    onPressed: () => _editMacroGoals(context, prefs),
+                  ),
+                ),
+                if (prefs.proteinGoal > 0 || prefs.carbsGoal > 0 || prefs.fatGoal > 0) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Row(
+                      children: [
+                        _MacroGoalChip(
+                          label: 'Protein',
+                          current: diary.totalProtein,
+                          goal: prefs.proteinGoal,
+                          color: Colors.blue.shade300,
+                          scheme: scheme,
+                        ),
+                        const SizedBox(width: 8),
+                        _MacroGoalChip(
+                          label: 'Karbo',
+                          current: diary.totalCarbs,
+                          goal: prefs.carbsGoal,
+                          color: Colors.amber.shade500,
+                          scheme: scheme,
+                        ),
+                        const SizedBox(width: 8),
+                        _MacroGoalChip(
+                          label: 'Lemak',
+                          current: diary.totalFat,
+                          goal: prefs.fatGoal,
+                          color: Colors.orange.shade400,
+                          scheme: scheme,
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Text(
+                      'Ketuk ikon edit untuk mengatur target protein, karbo, dan lemak harian.',
+                      style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -327,6 +404,166 @@ class _CalorieProgressCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MacroGoalChip extends StatelessWidget {
+  const _MacroGoalChip({
+    required this.label,
+    required this.current,
+    required this.goal,
+    required this.color,
+    required this.scheme,
+  });
+  final String label;
+  final double current;
+  final double goal;
+  final Color color;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = goal > 0 ? (current / goal).clamp(0.0, 1.0) : 0.0;
+    final over = goal > 0 && current > goal;
+
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '${current.toStringAsFixed(0)} g',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: color.withValues(alpha: 0.9),
+              ),
+            ),
+            Text(
+              '/ ${goal.toStringAsFixed(0)} g',
+              style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+            ),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 4,
+                backgroundColor: scheme.surfaceContainerHighest,
+                color: over ? Colors.orange : color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MacroGoalsDialog extends StatefulWidget {
+  const _MacroGoalsDialog({
+    required this.initialProtein,
+    required this.initialCarbs,
+    required this.initialFat,
+  });
+  final double initialProtein;
+  final double initialCarbs;
+  final double initialFat;
+
+  @override
+  State<_MacroGoalsDialog> createState() => _MacroGoalsDialogState();
+}
+
+class _MacroGoalsDialogState extends State<_MacroGoalsDialog> {
+  late final TextEditingController _protein;
+  late final TextEditingController _carbs;
+  late final TextEditingController _fat;
+
+  @override
+  void initState() {
+    super.initState();
+    _protein = TextEditingController(
+      text: widget.initialProtein > 0 ? widget.initialProtein.toStringAsFixed(0) : '',
+    );
+    _carbs = TextEditingController(
+      text: widget.initialCarbs > 0 ? widget.initialCarbs.toStringAsFixed(0) : '',
+    );
+    _fat = TextEditingController(
+      text: widget.initialFat > 0 ? widget.initialFat.toStringAsFixed(0) : '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _protein.dispose();
+    _carbs.dispose();
+    _fat.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Target Makronutrien Harian'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _protein,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Protein',
+              suffixText: 'gram',
+              hintText: 'cth: 50',
+            ),
+            autofocus: true,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _carbs,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Karbohidrat',
+              suffixText: 'gram',
+              hintText: 'cth: 250',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _fat,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Lemak',
+              suffixText: 'gram',
+              hintText: 'cth: 70',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final protein = double.tryParse(_protein.text) ?? 0;
+            final carbs   = double.tryParse(_carbs.text)   ?? 0;
+            final fat     = double.tryParse(_fat.text)     ?? 0;
+            Navigator.pop(context, (protein: protein, carbs: carbs, fat: fat));
+          },
+          child: const Text('Simpan'),
+        ),
+      ],
     );
   }
 }
