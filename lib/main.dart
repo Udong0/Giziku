@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,9 +16,8 @@ import 'features/planner/data/meal_plan_repository.dart';
 import 'features/planner/providers/meal_plan_provider.dart';
 import 'features/planner/services/notification_service.dart';
 import 'features/profile/providers/user_prefs_provider.dart';
+import 'features/scanner/data/firestore_food_repository.dart';
 import 'features/scanner/data/food_repository.dart';
-import 'features/scanner/data/local_food_repository.dart';
-import 'features/scanner/data/supabase_food_repository.dart';
 import 'features/scanner/providers/food_library_provider.dart';
 import 'features/scanner/services/food_image_storage.dart';
 import 'features/scanner/services/gemini_service.dart';
@@ -27,6 +27,7 @@ import 'features/tracker/providers/diary_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id', null);
 
   // .env — muat GEMINI_API_KEY dll. Diam-diam kalau file tidak ada
   // (mis. di CI / fresh checkout).
@@ -39,15 +40,15 @@ Future<void> main() async {
   // Firebase — wajib sebelum Firestore / Auth / FCM dipakai.
   await Firebase.initializeApp();
 
-  // Supabase — cloud DB untuk Scanner food library.
-  // Kredensial dimuat dari .env (SUPABASE_URL, SUPABASE_ANON_KEY).
+  // Supabase — hanya untuk image storage (bukan database).
+  // Food data sudah dipindah ke Firestore.
   final supaUrl = dotenv.env['SUPABASE_URL'];
   final supaKey = dotenv.env['SUPABASE_ANON_KEY'];
   if (supaUrl != null && supaKey != null && supaUrl.isNotEmpty) {
     await Supabase.initialize(url: supaUrl, publishableKey: supaKey);
-    debugPrint('[main] Supabase OK: $supaUrl');
+    debugPrint('[main] Supabase Storage OK: $supaUrl');
   } else {
-    debugPrint('[main] ⚠️ SUPABASE_URL/ANON_KEY belum di-set di .env');
+    debugPrint('[main] ⚠️ SUPABASE_URL/ANON_KEY belum di-set — gambar disimpan lokal');
   }
 
   // Notification & timezone init (skip di web — flutter_local_notifications
@@ -60,10 +61,8 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
 
   // Repositories
-  // Food: pakai Supabase kalau kredensial ada, fallback ke local (offline-safe).
-  final FoodRepository foodRepo = (supaUrl != null && supaUrl.isNotEmpty)
-      ? SupabaseFoodRepository(Supabase.instance.client)
-      : LocalFoodRepository(prefs);
+  final FoodRepository foodRepo =
+      FirestoreFoodRepository(FirebaseFirestore.instance);
   await foodRepo.init();
 
   final MealPlanRepository mealPlanRepo = LocalMealPlanRepository(prefs);
@@ -73,10 +72,14 @@ Future<void> main() async {
       FirestoreDiaryRepository(FirebaseFirestore.instance);
   await diaryRepo.init();
 
-  // Reload diary data tiap kali user login (user baru → data baru).
+  // Reload data tiap kali user login (user baru → data baru).
   final diaryProvider = DiaryProvider(diaryRepo);
+  final foodLibraryProvider = FoodLibraryProvider(foodRepo)..load();
   FirebaseAuth.instance.authStateChanges().listen((user) {
-    if (user != null) diaryProvider.reload();
+    if (user != null) {
+      diaryProvider.reload();
+      foodLibraryProvider.load();
+    }
   });
 
   // Services
@@ -94,9 +97,7 @@ Future<void> main() async {
         Provider<FoodRepository>.value(value: foodRepo),
         Provider<GeminiService>.value(value: gemini),
         Provider<FoodImageStorage?>.value(value: imageStorage),
-        ChangeNotifierProvider(
-          create: (_) => FoodLibraryProvider(foodRepo)..load(),
-        ),
+        ChangeNotifierProvider.value(value: foodLibraryProvider),
 
         // Planner + Reminder
         Provider<MealPlanRepository>.value(value: mealPlanRepo),
