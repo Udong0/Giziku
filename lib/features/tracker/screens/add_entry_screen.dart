@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+
 import '../../../features/scanner/models/food_item.dart';
 import '../../../features/scanner/providers/food_library_provider.dart';
 import '../../../features/scanner/screens/food_form.dart';
@@ -118,36 +121,44 @@ class _AddEntryScreenState extends State<AddEntryScreen>
     final now = DateTime.now();
     final provider = context.read<DiaryProvider>();
 
-    if (_isEditing) {
-      final updated = widget.existingEntry!.copyWith(
-        foodName: draft.name,
-        mealType: _mealType,
-        servings: _servings,
-        caloriesPerServing: draft.calories,
-        proteinPerServing: draft.protein,
-        carbsPerServing: draft.carbs,
-        fatPerServing: draft.fat,
-        servingSizeG: draft.servingSize,
-        updatedAt: now,
+    try {
+      if (_isEditing) {
+        final updated = widget.existingEntry!.copyWith(
+          foodName: draft.name,
+          mealType: _mealType,
+          servings: _servings,
+          caloriesPerServing: draft.calories,
+          proteinPerServing: draft.protein,
+          carbsPerServing: draft.carbs,
+          fatPerServing: draft.fat,
+          servingSizeG: draft.servingSize,
+          updatedAt: now,
+        );
+        await provider.updateEntry(updated);
+      } else {
+        final entry = DiaryEntry(
+          id: const Uuid().v4(),
+          foodItemId: _linkedFoodItemId,
+          foodName: draft.name,
+          date: widget.initialDate,
+          mealType: _mealType,
+          servings: _servings,
+          caloriesPerServing: draft.calories,
+          proteinPerServing: draft.protein,
+          carbsPerServing: draft.carbs,
+          fatPerServing: draft.fat,
+          servingSizeG: draft.servingSize,
+          createdAt: now,
+          updatedAt: now,
+        );
+        await provider.addEntry(entry);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan: $e')),
       );
-      await provider.updateEntry(updated);
-    } else {
-      final entry = DiaryEntry(
-        id: const Uuid().v4(),
-        foodItemId: _linkedFoodItemId,
-        foodName: draft.name,
-        date: widget.initialDate,
-        mealType: _mealType,
-        servings: _servings,
-        caloriesPerServing: draft.calories,
-        proteinPerServing: draft.protein,
-        carbsPerServing: draft.carbs,
-        fatPerServing: draft.fat,
-        servingSizeG: draft.servingSize,
-        createdAt: now,
-        updatedAt: now,
-      );
-      await provider.addEntry(entry);
+      return;
     }
 
     if (!mounted) return;
@@ -189,6 +200,7 @@ class _AddEntryScreenState extends State<AddEntryScreen>
               onMealTypeChanged: (t) => setState(() => _mealType = t),
               onServingsChanged: (s) => setState(() => _servings = s),
               onSave: _save,
+              showMealChips: false,
             )
           : TabBarView(
               controller: _tabController,
@@ -207,6 +219,7 @@ class _AddEntryScreenState extends State<AddEntryScreen>
                   onMealTypeChanged: (t) => setState(() => _mealType = t),
                   onServingsChanged: (s) => setState(() => _servings = s),
                   onSave: _save,
+                  showMealChips: false,
                 ),
               ],
             ),
@@ -256,7 +269,7 @@ class _LibraryTabState extends State<_LibraryTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.m),
           child: TextField(
             decoration: const InputDecoration(
               hintText: 'Cari makanan di koleksimu…',
@@ -313,7 +326,7 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.l),
         child: Text(
           message,
           textAlign: TextAlign.center,
@@ -333,7 +346,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.m, AppSpacing.s, AppSpacing.m, AppSpacing.xxs),
       child: Row(
         children: [
           Icon(icon, size: 14, color: scheme.primary),
@@ -400,6 +413,7 @@ class _ManualBody extends StatelessWidget {
     required this.onMealTypeChanged,
     required this.onServingsChanged,
     required this.onSave,
+    this.showMealChips = true,
   });
 
   final FoodFormController form;
@@ -409,26 +423,29 @@ class _ManualBody extends StatelessWidget {
   final ValueChanged<MealType> onMealTypeChanged;
   final ValueChanged<double> onServingsChanged;
   final VoidCallback onSave;
+  final bool showMealChips;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.m),
       children: [
-        _MealTypeChips(selected: mealType, onSelected: onMealTypeChanged),
-        const SizedBox(height: 20),
+        if (showMealChips) ...[
+          _MealTypeChips(selected: mealType, onSelected: onMealTypeChanged),
+          const SizedBox(height: AppSpacing.m),
+        ],
         FoodFormFields(controller: form),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.m),
         _ServingsStepper(value: servings, onChanged: onServingsChanged),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.s),
         _CaloriesPreviewBanner(calories: previewCalories),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.l),
         FilledButton.icon(
           onPressed: onSave,
           icon: const Icon(Icons.add),
           label: const Text('Tambah ke Jurnal'),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.m),
       ],
     );
   }
@@ -443,6 +460,7 @@ class _EditBody extends StatelessWidget {
     required this.onMealTypeChanged,
     required this.onServingsChanged,
     required this.onSave,
+    this.showMealChips = true,
   });
 
   final FoodFormController form;
@@ -452,26 +470,29 @@ class _EditBody extends StatelessWidget {
   final ValueChanged<MealType> onMealTypeChanged;
   final ValueChanged<double> onServingsChanged;
   final VoidCallback onSave;
+  final bool showMealChips;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.m),
       children: [
-        _MealTypeChips(selected: mealType, onSelected: onMealTypeChanged),
-        const SizedBox(height: 20),
+        if (showMealChips) ...[
+          _MealTypeChips(selected: mealType, onSelected: onMealTypeChanged),
+          const SizedBox(height: AppSpacing.m),
+        ],
         FoodFormFields(controller: form),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.m),
         _ServingsStepper(value: servings, onChanged: onServingsChanged),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.s),
         _CaloriesPreviewBanner(calories: previewCalories),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.l),
         FilledButton.icon(
           onPressed: onSave,
           icon: const Icon(Icons.check),
           label: const Text('Simpan Perubahan'),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.m),
       ],
     );
   }
@@ -492,15 +513,30 @@ class _MealTypeChips extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Waktu Makan', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.xs),
         Wrap(
-          spacing: 8,
+          spacing: AppSpacing.xs,
           children: [
             for (final type in MealType.values)
               ChoiceChip(
-                label: Text(type.label),
+                label: Text(
+                  type.label,
+                  style: type == selected
+                      ? AppTheme.jakartaSemiBold(size: 12)
+                          .copyWith(color: Colors.white)
+                      : AppTheme.inter(
+                          size: 12, color: AppTheme.charcoal),
+                ),
                 selected: type == selected,
                 onSelected: (_) => onSelected(type),
+                backgroundColor: Colors.white,
+                selectedColor: AppTheme.primary,
+                side: BorderSide(
+                  color: type == selected
+                      ? AppTheme.primary
+                      : AppTheme.creamyBorder,
+                ),
+                showCheckmark: false,
               ),
           ],
         ),
@@ -553,29 +589,32 @@ class _CaloriesPreviewBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: 14),
+      decoration: AppTheme.glassPanelHeavyDecoration(radius: AppRadius.large),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.local_fire_department, color: scheme.onPrimaryContainer),
-          const SizedBox(width: 8),
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.primary,
+              borderRadius: BorderRadius.circular(AppRadius.full),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.s),
+          const Icon(Icons.local_fire_department, color: AppTheme.primary),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             '${calories.toStringAsFixed(0)} kkal',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: scheme.onPrimaryContainer,
-                  fontWeight: FontWeight.bold,
-                ),
+            style: AppTheme.digitStyle(size: 28, color: AppTheme.primary),
           ),
           const SizedBox(width: 6),
           Text(
             'estimasi total',
-            style: TextStyle(color: scheme.onPrimaryContainer),
+            style: AppTheme.inter(size: 13).copyWith(
+              color: AppTheme.charcoal,
+            ),
           ),
         ],
       ),

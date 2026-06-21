@@ -1,9 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+
+import '../screens/planner_screen.dart';
 
 /// Layanan notifikasi yang menggabungkan:
 ///   • flutter_local_notifications → reminder lokal terjadwal (demo-able)
@@ -19,9 +22,11 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  GlobalKey<NavigatorState>? _navigatorKey;
 
   // ── Inisialisasi ────────────────────────────────────────────
-  Future<void> initialize() async {
+  Future<void> initialize({GlobalKey<NavigatorState>? navigatorKey}) async {
+    _navigatorKey = navigatorKey;
     if (_initialized) return;
     if (kIsWeb) return;
 
@@ -50,6 +55,12 @@ class NotificationService {
       settings,
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
+
+    // Android 13+ butuh runtime permission request
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
 
     await _createAndroidChannel();
     await _initFirebase();
@@ -118,7 +129,11 @@ class NotificationService {
     required DateTime scheduledDate,
   }) async {
     if (kIsWeb) return id;
-    final tzDate = tz.TZDateTime.from(scheduledDate, tz.local);
+
+    final delay = scheduledDate.difference(DateTime.now());
+    final tzDate = tz.TZDateTime.now(tz.local).add(delay);
+
+    debugPrint('[NotificationService] Scheduling id=$id at $tzDate (delay=${delay.inSeconds}s)');
 
     await _plugin.zonedSchedule(
       id,
@@ -143,7 +158,6 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: null,
     );
     return id;
   }
@@ -182,7 +196,9 @@ class NotificationService {
   }
 
   void _onNotificationTap(NotificationResponse response) {
-    // TODO: navigasi ke PlannerScreen saat notif di-tap
     debugPrint('[NotificationService] Notif tapped: ${response.payload}');
+    _navigatorKey?.currentState?.push(
+      MaterialPageRoute(builder: (_) => const PlannerScreen()),
+    );
   }
 }

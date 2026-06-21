@@ -11,7 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'features/auth/providers/auth_provider.dart' as app_auth;
-import 'features/planner/data/local_meal_plan_repository.dart';
+import 'features/planner/data/firestore_meal_plan_repository.dart';
 import 'features/planner/data/meal_plan_repository.dart';
 import 'features/planner/providers/meal_plan_provider.dart';
 import 'features/planner/services/notification_service.dart';
@@ -51,10 +51,12 @@ Future<void> main() async {
     debugPrint('[main] ⚠️ SUPABASE_URL/ANON_KEY belum di-set — gambar disimpan lokal');
   }
 
+  final navigatorKey = GlobalKey<NavigatorState>();
+
   // Notification & timezone init (skip di web — flutter_local_notifications
   // tidak support web).
   if (!kIsWeb) {
-    await NotificationService.instance.initialize();
+    await NotificationService.instance.initialize(navigatorKey: navigatorKey);
   }
 
   // Shared preferences
@@ -65,7 +67,8 @@ Future<void> main() async {
       FirestoreFoodRepository(FirebaseFirestore.instance);
   await foodRepo.init();
 
-  final MealPlanRepository mealPlanRepo = LocalMealPlanRepository(prefs);
+  final MealPlanRepository mealPlanRepo =
+      FirestoreMealPlanRepository(FirebaseFirestore.instance);
   await mealPlanRepo.init();
 
   final DiaryRepository diaryRepo =
@@ -75,10 +78,12 @@ Future<void> main() async {
   // Reload data tiap kali user login (user baru → data baru).
   final diaryProvider = DiaryProvider(diaryRepo);
   final foodLibraryProvider = FoodLibraryProvider(foodRepo)..load();
+  final mealPlanProvider = MealPlanProvider(mealPlanRepo)..load();
   FirebaseAuth.instance.authStateChanges().listen((user) {
     if (user != null) {
       diaryProvider.reload();
       foodLibraryProvider.load();
+      mealPlanProvider.load();
     }
   });
 
@@ -101,9 +106,7 @@ Future<void> main() async {
 
         // Planner + Reminder
         Provider<MealPlanRepository>.value(value: mealPlanRepo),
-        ChangeNotifierProvider(
-          create: (_) => MealPlanProvider(mealPlanRepo)..load(),
-        ),
+        ChangeNotifierProvider.value(value: mealPlanProvider),
 
         // Auth
         ChangeNotifierProvider(create: (_) => app_auth.AuthProvider()),
@@ -115,7 +118,7 @@ Future<void> main() async {
           create: (_) => UserPrefsProvider(prefs),
         ),
       ],
-      child: const GiziKuApp(),
+      child: GiziKuApp(navigatorKey: navigatorKey),
     ),
   );
 }

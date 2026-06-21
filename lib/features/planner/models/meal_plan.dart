@@ -1,24 +1,8 @@
 import 'dart:convert';
 
-// Shared dengan Tracker — import dari sini agar tidak duplikat.
-// Jika Anggota 2 sudah buat enum ini, hapus definisi di sini dan import dari tracker.
-enum MealType { breakfast, lunch, dinner, snack }
+import '../../../core/models/meal_type.dart';
 
-extension MealTypeLabel on MealType {
-  String get label => switch (this) {
-        MealType.breakfast => 'Sarapan',
-        MealType.lunch => 'Makan Siang',
-        MealType.dinner => 'Makan Malam',
-        MealType.snack => 'Camilan',
-      };
-
-  String get emoji => switch (this) {
-        MealType.breakfast => '🌅',
-        MealType.lunch => '☀️',
-        MealType.dinner => '🌙',
-        MealType.snack => '🍎',
-      };
-}
+export '../../../core/models/meal_type.dart';
 
 class MealPlan {
   final String id;
@@ -95,7 +79,8 @@ class MealPlan {
       customName: json['customName'] as String?,
       scheduledAt: DateTime.parse(json['scheduledAt'] as String),
       mealType:
-          MealType.values.firstWhere((e) => e.name == json['mealType']),
+          MealType.values.firstWhere((e) => e.name == json['mealType'],
+              orElse: () => MealType.lunch),
       reminderEnabled: json['reminderEnabled'] as bool? ?? true,
       notificationId: json['notificationId'] as int?,
       createdAt: DateTime.parse(json['createdAt'] as String),

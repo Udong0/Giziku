@@ -6,11 +6,14 @@ import 'core/widgets/main_shell.dart';
 import 'features/auth/screens/login_screen.dart';
 
 class GiziKuApp extends StatelessWidget {
-  const GiziKuApp({super.key});
+  const GiziKuApp({super.key, required this.navigatorKey});
+
+  final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'GiziKu',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_spacing.dart';
 import '../models/food_item.dart';
 
 class FoodDraft {
@@ -128,7 +130,7 @@ class FoodFormFields extends StatelessWidget {
             prefixIcon: Icon(Icons.fastfood),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.s),
         TextField(
           controller: controller.description,
           maxLines: 2,
@@ -137,19 +139,32 @@ class FoodFormFields extends StatelessWidget {
             prefixIcon: Icon(Icons.notes),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.s),
         _NumberField(
           controller: controller.servingSize,
           label: 'Porsi (gram)',
           icon: Icons.scale,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.s),
         _NumberField(
           controller: controller.calories,
           label: 'Kalori (kcal)',
           icon: Icons.local_fire_department,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.m),
+        const Divider(height: 1),
+        const SizedBox(height: AppSpacing.m),
+        // Section header: Informasi Gizi
+        Text(
+          'INFORMASI GIZI',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+            color: const Color(0xFF9E9E9E),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
         Row(
           children: [
             Expanded(
@@ -159,7 +174,7 @@ class FoodFormFields extends StatelessWidget {
                 icon: Icons.egg_alt,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.s),
             Expanded(
               child: _NumberField(
                 controller: controller.carbs,
@@ -169,7 +184,7 @@ class FoodFormFields extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.s),
         _NumberField(
           controller: controller.fat,
           label: 'Lemak (g)',

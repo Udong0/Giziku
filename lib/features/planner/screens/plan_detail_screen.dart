@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/nutrition_colors.dart';
+
 import '../../../features/scanner/providers/food_library_provider.dart';
 import '../models/meal_plan.dart';
 import '../providers/meal_plan_provider.dart';
@@ -39,39 +43,46 @@ class PlanDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Container(
+        decoration: AppTheme.meshBackgroundDecoration,
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.m),
         children: [
           // Header card
-          Card(
-            color: cs.primaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${plan.mealType.emoji} ${plan.mealType.label}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: cs.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.m),
+            decoration: AppTheme.glassPanelHeavyDecoration(radius: 16),
+            child: Row(
+              children: [
+                Text(
+                  plan.mealType.emoji,
+                  style: const TextStyle(fontSize: 40),
+                ),
+                const SizedBox(width: AppSpacing.m),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan.foodItemId != null
+                            ? (food?.name ?? '⚠️ Makanan dihapus')
+                            : (plan.customName ?? '-'),
+                        style: AppTheme.jakartaBold(size: 16),
+                      ),
+                      Text(
+                        plan.mealType.label,
+                        style: AppTheme.inter(size: 13).copyWith(
+                          color: cs.onSurfaceVariant,
                         ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    plan.foodItemId != null
-                        ? (food?.name ?? '⚠️ Makanan dihapus')
-                        : (plan.customName ?? '-'),
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: cs.onPrimaryContainer,
-                        ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.m),
 
           // Info tiles
           _InfoTile(
@@ -95,18 +106,18 @@ class PlanDetailScreen extends StatelessWidget {
 
           // Nutrisi dari library (jika ada)
           if (food != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.m),
             Text('Informasi Nutrisi',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: cs.primary,
                     )),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             _NutritionCard(food: food),
           ],
 
           // Peringatan jika makanan dihapus dari library
           if (plan.foodItemId != null && food == null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.m),
             Card(
               color: cs.errorContainer,
               child: ListTile(
@@ -123,7 +134,8 @@ class PlanDetailScreen extends StatelessWidget {
             ),
           ],
         ],
-      ),
+        ), // ListView
+      ), // Container mesh
     );
   }
 
@@ -174,11 +186,11 @@ class _InfoTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: ListTile(
         leading: Icon(icon, color: cs.primary),
         title: Text(title,
-            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            style: AppTheme.inter(size: 12).copyWith(color: cs.onSurfaceVariant)),
         subtitle: Text(
           value,
           style: TextStyle(
@@ -186,7 +198,7 @@ class _InfoTile extends StatelessWidget {
             color: valueColor,
           ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xxs),
       ),
     );
   }
@@ -198,28 +210,33 @@ class _NutritionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Per ${food.servingSize.toStringAsFixed(0)}g',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+        padding: const EdgeInsets.all(AppSpacing.m),
+        child: Builder(
+          builder: (context) {
+            final cs = Theme.of(context).colorScheme;
+            final nc = NutritionColors.of(context);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _NutriChip(label: 'Kalori', value: '${food.calories.toStringAsFixed(0)} kcal', color: cs.primary),
-                _NutriChip(label: 'Protein', value: '${food.protein.toStringAsFixed(1)}g', color: Colors.blue),
-                _NutriChip(label: 'Karbo', value: '${food.carbs.toStringAsFixed(1)}g', color: Colors.orange),
-                _NutriChip(label: 'Lemak', value: '${food.fat.toStringAsFixed(1)}g', color: Colors.red),
+                Text(
+                  'Per ${food.servingSize.toStringAsFixed(0)}g',
+                  style: AppTheme.inter(size: 12).copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: AppSpacing.s),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _NutriChip(label: 'Kalori', value: '${food.calories.toStringAsFixed(0)} kcal', color: nc.calorieColor),
+                    _NutriChip(label: 'Protein', value: '${food.protein.toStringAsFixed(1)}g', color: nc.proteinColor),
+                    _NutriChip(label: 'Karbo', value: '${food.carbs.toStringAsFixed(1)}g', color: nc.carbsColor),
+                    _NutriChip(label: 'Lemak', value: '${food.fat.toStringAsFixed(1)}g', color: nc.fatColor),
+                  ],
+                ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -234,8 +251,8 @@ class _NutriChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
         children: [
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(value, style: AppTheme.digitStyle(size: 13, color: color)),
+          Text(label, style: AppTheme.inter(size: 11).copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
       );
 }

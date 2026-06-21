@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/semantic_colors.dart';
 
 import '../models/food_item.dart';
 import '../providers/food_library_provider.dart';
@@ -13,8 +16,15 @@ import 'food_detail_screen.dart';
 import 'food_edit_screen.dart';
 
 /// READ: list of every food the user has saved.
-class FoodLibraryScreen extends StatelessWidget {
+class FoodLibraryScreen extends StatefulWidget {
   const FoodLibraryScreen({super.key});
+
+  @override
+  State<FoodLibraryScreen> createState() => _FoodLibraryScreenState();
+}
+
+class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +42,15 @@ class FoodLibraryScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addManual(context),
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Tambah Manual'),
+        label: Text('Tambah Manual', style: AppTheme.inter(size: 14).copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
       ),
-      body: _buildBody(context, provider),
+      body: Container(
+        decoration: AppTheme.meshBackgroundDecoration,
+        child: _buildBody(context, provider),
+      ),
     );
   }
 
@@ -46,15 +61,32 @@ class FoodLibraryScreen extends StatelessWidget {
     if (provider.error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.l),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48),
-              const SizedBox(height: 12),
-              Text(provider.error!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: provider.load, child: const Text('Coba lagi')),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.m),
+                decoration: BoxDecoration(
+                  color: SemanticColors.of(context).error.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.error_outline,
+                    size: 40, color: SemanticColors.of(context).error),
+              ),
+              const SizedBox(height: AppSpacing.s),
+              Text(
+                provider.error!,
+                textAlign: TextAlign.center,
+                style: AppTheme.inter(size: 14),
+              ),
+              const SizedBox(height: AppSpacing.s),
+              FilledButton(
+                onPressed: provider.load,
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primary),
+                child: const Text('Coba lagi'),
+              ),
             ],
           ),
         ),
@@ -63,20 +95,41 @@ class FoodLibraryScreen extends StatelessWidget {
     if (provider.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.l),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.collections_bookmark_outlined, size: 64),
-              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.l),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.collections_bookmark_outlined,
+                  size: 48,
+                  color: AppTheme.primary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.m),
               Text(
                 'Belum ada makanan tersimpan',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: AppTheme.jakartaSemiBold(size: 16),
               ),
-              const SizedBox(height: 4),
-              const Text(
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
                 'Pakai Scanner atau tombol "Tambah Manual" untuk mulai.',
                 textAlign: TextAlign.center,
+                style: AppTheme.inter(size: 13).copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.m),
+              FilledButton.icon(
+                onPressed: () => _addManual(context),
+                icon: const Icon(Icons.add),
+                label: const Text('+ Tambah Makanan'),
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
               ),
             ],
           ),
@@ -84,14 +137,92 @@ class FoodLibraryScreen extends StatelessWidget {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: provider.load,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-        itemCount: provider.items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => _FoodCard(item: provider.items[i]),
-      ),
+    final filteredItems = _searchQuery.isEmpty
+        ? provider.items
+        : provider.items
+            .where((item) =>
+                item.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+            .toList();
+
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.m, vertical: AppSpacing.s),
+          child: TextField(
+            onChanged: (v) => setState(() => _searchQuery = v),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'Cari makanan...',
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () => setState(() => _searchQuery = ''),
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.full),
+              ),
+            ),
+          ),
+        ),
+        // Empty search state
+        if (filteredItems.isEmpty && _searchQuery.isNotEmpty)
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.l),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.search_off,
+                        size: 48,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    const SizedBox(height: AppSpacing.s),
+                    Text(
+                      'Tidak ditemukan',
+                      style: AppTheme.jakartaSemiBold(size: 15),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      '"$_searchQuery" tidak ada di koleksimu.',
+                      textAlign: TextAlign.center,
+                      style: AppTheme.inter(size: 13).copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.m),
+                    TextButton(
+                      onPressed: () => setState(() => _searchQuery = ''),
+                      child: const Text('Hapus pencarian'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: RefreshIndicator(
+              color: AppTheme.primary,
+              onRefresh: provider.load,
+              child: GridView.builder(
+                padding: EdgeInsets.fromLTRB(
+                    AppSpacing.m, AppSpacing.s, AppSpacing.m, 100),
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: AppSpacing.s,
+                  mainAxisSpacing: AppSpacing.s,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: filteredItems.length,
+                itemBuilder: (_, i) => _FoodCard(item: filteredItems[i]),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -122,113 +253,120 @@ class _FoodCard extends StatelessWidget {
 
   final FoodItem item;
 
-  Widget _buildThumbnail(FoodItem item, ColorScheme scheme) {
-    final fallback = Container(
-      color: scheme.surfaceContainerHighest,
-      child: const Icon(Icons.fastfood, size: 28),
-    );
+  Widget _buildImage(FoodItem item, ColorScheme scheme) {
     final path = item.imagePath;
-    if (path == null) return fallback;
-    // URL Supabase Storage: aman untuk web & native.
-    if (FoodImageStorage.isRemoteUrl(path)) {
-      return Image.network(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => fallback,
+    final firstLetter =
+        item.name.isNotEmpty ? item.name[0].toUpperCase() : '?';
+
+    if (path != null) {
+      Widget imageWidget;
+      if (FoodImageStorage.isRemoteUrl(path)) {
+        imageWidget = Image.network(
+          path,
+          height: 80,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _letterAvatar(firstLetter),
+        );
+      } else if (!kIsWeb) {
+        imageWidget = Image.file(
+          File(path),
+          height: 80,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _letterAvatar(firstLetter),
+        );
+      } else {
+        imageWidget = _letterAvatar(firstLetter);
+      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(height: 80, width: double.infinity, child: imageWidget),
       );
     }
-    // Local file path: dart:io File tidak support di web.
-    if (kIsWeb) return fallback;
-    return Image.file(
-      File(path),
-      fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => fallback,
+    return _letterAvatar(firstLetter);
+  }
+
+  Widget _letterAvatar(String letter) {
+    return Container(
+      height: 80,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Text(
+          letter,
+          style: AppTheme.jakartaBold(size: 28).copyWith(
+            color: AppTheme.primary,
+          ),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => FoodDetailScreen(id: item.id)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 64,
-                  height: 64,
-                  child: _buildThumbnail(item, scheme),
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => FoodDetailScreen(id: item.id)),
+      ),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: AppTheme.glassPanelDecoration(radius: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top: letter avatar or image
+            _buildImage(item, Theme.of(context).colorScheme),
+            const SizedBox(height: 8),
+            // Food name
+            Text(
+              item.name,
+              style: AppTheme.jakartaSemiBold(size: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            // Bottom row
+            Row(
+              children: [
+                Text(
+                  '${item.calories.toStringAsFixed(0)} kkal',
+                  style: AppTheme.digitStyle(size: 13, color: AppTheme.primary)
+                      .copyWith(fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 16),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${item.calories.toStringAsFixed(0)} kcal · '
-                      '${item.servingSize.toStringAsFixed(0)} g',
-                      style: TextStyle(color: scheme.onSurfaceVariant),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        _Tag(item.source.label),
-                        const SizedBox(width: 6),
-                        Text(
-                          DateFormat('d MMM yy').format(item.updatedAt),
-                          style: TextStyle(
-                            color: scheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
+                const Spacer(),
+                _SourceBadge(item.source.label),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Tag extends StatelessWidget {
-  const _Tag(this.label);
+class _SourceBadge extends StatelessWidget {
+  const _SourceBadge(this.label);
   final String label;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs, vertical: 2),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.full),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 11,
-          color: scheme.onSecondaryContainer,
-          fontWeight: FontWeight.w500,
+        style: AppTheme.inter(size: 10).copyWith(
+          color: AppTheme.primary,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
