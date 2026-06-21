@@ -8,6 +8,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+
 import '../models/food_item.dart';
 import '../providers/food_library_provider.dart';
 import '../services/food_image_storage.dart';
@@ -147,7 +150,7 @@ class _FoodEditScreenState extends State<FoodEditScreen> {
         title: Text(widget.isNew ? 'Tambah Makanan' : 'Edit Makanan'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.m),
         children: [
           _ImagePreview(
             path: _controller.imagePath,
@@ -157,11 +160,16 @@ class _FoodEditScreenState extends State<FoodEditScreen> {
                 ? null
                 : () => setState(() => _controller.imagePath = null),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.m),
           FoodFormFields(controller: _controller),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.l),
+          const Divider(height: 1),
+          const SizedBox(height: AppSpacing.l),
           FilledButton.icon(
             onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
             icon: _saving
                 ? const SizedBox(
                     width: 16,
@@ -171,7 +179,7 @@ class _FoodEditScreenState extends State<FoodEditScreen> {
                 : const Icon(Icons.save_outlined),
             label: Text(widget.isNew ? 'Simpan' : 'Simpan Perubahan'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xs),
           TextButton(
             onPressed: _saving ? null : () => Navigator.of(context).pop(),
             child: const Text('Batal'),
@@ -195,10 +203,28 @@ class _ImagePreview extends StatelessWidget {
   final VoidCallback? onGallery;
   final VoidCallback? onClear;
 
-  Widget _placeholder(ColorScheme scheme) => Container(
-        color: scheme.surfaceContainerHighest,
-        child: const Center(
-          child: Icon(Icons.photo_outlined, size: 48),
+  Widget _placeholder(ColorScheme scheme) => Builder(
+        builder: (context) => Container(
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.06),
+            border: Border.all(color: AppTheme.creamyBorder),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud_upload_outlined,
+                    size: 40,
+                    color: AppTheme.primary.withValues(alpha: 0.6)),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Ketuk untuk tambah foto',
+                  style: AppTheme.inter(size: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
         ),
       );
 
@@ -227,13 +253,13 @@ class _ImagePreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.large),
           child: AspectRatio(
             aspectRatio: 16 / 9,
             child: _buildPreview(scheme),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.xs),
         Row(
           children: [
             Expanded(
@@ -243,7 +269,7 @@ class _ImagePreview extends StatelessWidget {
                 label: const Text('Kamera'),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: onGallery,

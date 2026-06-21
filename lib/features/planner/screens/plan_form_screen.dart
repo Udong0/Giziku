@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme.dart';
+
 import '../../../features/scanner/providers/food_library_provider.dart';
 import '../models/meal_plan.dart';
 import '../providers/meal_plan_provider.dart';
@@ -64,10 +67,11 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   // ── Pickers ──────────────────────────────────────────────────
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _scheduledDate,
-      firstDate: now.subtract(const Duration(days: 365)),
+      initialDate: _scheduledDate.isBefore(today) ? today : _scheduledDate,
+      firstDate: today,
       lastDate: now.add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _scheduledDate = picked);
@@ -89,6 +93,16 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
     if (_useCustomName && _customNameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Masukkan nama makanan atau pilih dari library.')),
+      );
+      return;
+    }
+
+    if (_reminderEnabled && !_combined.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Waktu sudah lewat — reminder tidak akan aktif. Pilih waktu yang akan datang.'),
+          duration: Duration(seconds: 3),
+        ),
       );
       return;
     }
@@ -144,7 +158,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
         actions: [
           if (_saving)
             const Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(AppSpacing.m),
               child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
             )
           else
@@ -157,7 +171,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.m),
           children: [
             // ── Tipe makan ──────────────────────────────────
             _SectionLabel('Tipe Makan'),
@@ -166,7 +180,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
               onChanged: (v) => setState(() => _mealType = v),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.m),
 
             // ── Tanggal & Jam ────────────────────────────────
             _SectionLabel('Jadwal'),
@@ -179,7 +193,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
                     onTap: _pickDate,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: _PickerTile(
                     icon: Icons.access_time_outlined,
@@ -190,7 +204,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.m),
 
             // ── Makanan ──────────────────────────────────────
             _SectionLabel('Makanan'),
@@ -204,7 +218,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
               onClearFood: () => setState(() => _selectedFoodId = null),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.m),
 
             // ── Reminder toggle ──────────────────────────────
             _SectionLabel('Pengingat'),
@@ -225,7 +239,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: AppSpacing.xl),
           ],
         ),
       ),
@@ -241,13 +255,23 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          text,
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(color: Theme.of(context).colorScheme.primary),
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: Row(
+          children: [
+            Container(
+              width: 3,
+              height: 14,
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              text,
+              style: AppTheme.jakartaSemiBold(size: 14),
+            ),
+          ],
         ),
       );
 }
@@ -268,7 +292,7 @@ class _PickerTile extends StatelessWidget {
           leading: Icon(icon),
           title: Text(label, style: const TextStyle(fontSize: 14)),
           onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
         ),
       );
 }
@@ -286,30 +310,30 @@ class _MealTypeSelector extends StatelessWidget {
         final isSelected = type == selected;
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
             child: GestureDetector(
               onTap: () => onChanged(type),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
                 decoration: BoxDecoration(
-                  color: isSelected ? cs.primaryContainer : cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
+                  color: isSelected
+                      ? AppTheme.primary.withValues(alpha: 0.08)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
                   border: isSelected
-                      ? Border.all(color: cs.primary, width: 2)
-                      : null,
+                      ? Border.all(color: AppTheme.primary, width: 2)
+                      : Border.all(color: AppTheme.creamyBorder),
                 ),
                 child: Column(
                   children: [
-                    Text(type.emoji, style: const TextStyle(fontSize: 22)),
-                    const SizedBox(height: 4),
+                    Text(type.emoji, style: TextStyle(fontSize: isSelected ? 24 : 22)),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       type.label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? cs.onPrimaryContainer : cs.onSurfaceVariant,
-                      ),
+                      style: isSelected
+                          ? AppTheme.jakartaSemiBold(size: 11).copyWith(color: AppTheme.primary)
+                          : AppTheme.inter(size: 11).copyWith(color: cs.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -374,10 +398,10 @@ class _FoodSelector extends StatelessWidget {
               if (id != null) onFoodSelected(id);
             },
           ),
-          const SizedBox(height: 12),
-          const Text('— atau masukkan nama manual —',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.s),
+          Text('— atau masukkan nama manual —',
+              style: AppTheme.inter(size: 12).copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          const SizedBox(height: AppSpacing.xs),
           TextFormField(
             controller: customNameCtrl,
             decoration: const InputDecoration(
@@ -417,17 +441,17 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
       expand: false,
       builder: (_, ctrl) => Column(
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xs),
           Container(
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+              color: AppTheme.creamyBorder,
+              borderRadius: BorderRadius.circular(AppRadius.small),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.s),
             child: TextField(
               autofocus: true,
               decoration: const InputDecoration(
@@ -441,7 +465,7 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
           ),
           if (widget.library.isEmpty)
             const Padding(
-              padding: EdgeInsets.all(32),
+              padding: EdgeInsets.all(AppSpacing.xl),
               child: Text('Library makanan kosong.\nTambahkan lewat tab Scanner.', textAlign: TextAlign.center),
             )
           else

@@ -1,18 +1,8 @@
 import 'dart:convert';
 
-enum MealType {
-  breakfast,
-  lunch,
-  dinner,
-  snack;
+import '../../../core/models/meal_type.dart';
 
-  String get label => switch (this) {
-        MealType.breakfast => 'Sarapan',
-        MealType.lunch => 'Makan Siang',
-        MealType.dinner => 'Makan Malam',
-        MealType.snack => 'Camilan',
-      };
-}
+export '../../../core/models/meal_type.dart';
 
 /// Satu catatan makanan dalam jurnal harian.
 ///

@@ -69,6 +69,8 @@ app.*.map.json
 
 # === Secrets / API keys ===
 .env
+.env.*
+!.env.example
 # Kalau pakai launch.json untuk simpan GEMINI_API_KEY, jangan di-commit
 .vscode/launch.json
 .vscode/settings.json
