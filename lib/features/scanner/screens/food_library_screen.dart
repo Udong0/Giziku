@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +34,14 @@ class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
       appBar: AppBar(
         title: const Text('Koleksi Makananku'),
         actions: [
+          // Tombol Debug Crashlytics (Bisa dihapus jika sudah selesai testing)
+          IconButton(
+            tooltip: 'Test Crash',
+            icon: const Icon(Icons.bug_report, color: Colors.redAccent),
+            onPressed: () {
+              FirebaseCrashlytics.instance.crash();
+            },
+          ),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),

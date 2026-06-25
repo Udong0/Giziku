@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -39,6 +40,15 @@ Future<void> main() async {
 
   // Firebase — wajib sebelum Firestore / Auth / FCM dipakai.
   await Firebase.initializeApp();
+
+  // Crashlytics — Tangkap semua error tidak terduga dari Flutter framework
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+  // Crashlytics — Tangkap semua error asynchronous di luar framework
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   // Supabase — hanya untuk image storage (bukan database).
   // Food data sudah dipindah ke Firestore.
